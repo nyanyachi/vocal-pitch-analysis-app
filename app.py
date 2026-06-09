@@ -8,7 +8,7 @@ from datetime import datetime
 import os
 import pandas as pd
 
-from translations_2 import TEXT
+from translations import TEXT
 
 
 def remove_short_pitch_spikes(valid_times, valid_pitch, min_duration=0.2, jump_ratio=1.8):
