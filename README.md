@@ -24,8 +24,9 @@ The goal is not to compete with other singers, but to compare past recordings wi
 * Stability score calculation
 * Segment-based accuracy analysis
 * Highest and lowest pitch detection
+* Pitch error visualization
 
-### Growth Tracking (V2.5)
+### Growth Tracking
 
 * Save analysis results to records.json
 * Vocal history dashboard
@@ -36,6 +37,25 @@ The goal is not to compete with other singers, but to compare past recordings wi
 * Compare older and newer recordings
 * Personal vocal profile generation
 
+### Real-Time Tuner (V3.0)
+
+* Real-time microphone pitch detection
+* Frequency (Hz) display
+* Musical note detection
+* Cent difference display
+* Real-time tuning status
+
+  * Perfect
+  * Good
+  * High
+  * Low
+* Real-time cent bar visualization
+* Pitch smoothing
+* Note stabilization
+* Pitch hold system
+* Automatic microphone noise calibration
+* Real-time stability score
+
 ## Technologies
 
 * Python
@@ -44,6 +64,7 @@ The goal is not to compete with other singers, but to compare past recordings wi
 * NumPy
 * Pandas
 * Matplotlib
+* SoundDevice
 
 ## Installation
 
@@ -53,20 +74,51 @@ pip install -r requirements.txt
 
 ## Run
 
+### Main Application
+
 ```bash
 streamlit run app.py
 ```
 
-## Future Plans
+### Real-Time Tuner Test
 
-### V3
+```bash
+python real_time_pitch.py
+```
 
-* Vocal profile improvements
-* Reference quality scoring
-* Progress charts
-* Vocal range analysis
-* AI-based coaching feedback
-* Multi-language support
+## Project Structure
+
+```text
+app.py
+real_time_pitch.py
+realtime_tuner_engine.py
+translations.py
+requirements.txt
+README.md
+README_KR.md
+README_JP.md
+```
+
+## Roadmap
+
+### V3.0
+
+* Real-time tuner MVP
+* Real-time pitch detection
+* Stability monitoring
+* Automatic noise calibration
+
+### V3.5
+
+* Always-on-top overlay mode
+* VRChat practice support
+
+### V4.0
+
+* Practice session mode
+* Vocal achievements system
+* Advanced vocal profile
+* Growth analytics dashboard
 
 ## Author
 

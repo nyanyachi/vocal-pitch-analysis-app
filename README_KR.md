@@ -1,40 +1,60 @@
-# 보컬 음정 분석 보조 앱
+# Vocal Pitch Analysis App
 
-Python과 Streamlit으로 개발한 개인용 보컬 분석 및 성장 기록 앱입니다.
+Python + Streamlit 기반의 개인용 보컬 분석 및 성장 기록 애플리케이션입니다.
 
 ## 프로젝트 소개
 
-이 앱은 내가 녹음한 노래를 기준 보컬과 비교하여 음정 정확도와 안정성을 분석하고, 장기적으로 보컬 실력의 변화를 기록하기 위해 제작되었습니다.
+이 프로젝트는 기준 보컬과 자신의 보컬을 비교하고, 시간이 지나면서 얼마나 성장했는지를 기록하기 위해 만들어졌습니다.
 
-전문 보컬 트레이너를 대체하는 것이 목적이 아니라, 과거의 나와 현재의 나를 비교하며 성장 과정을 확인하는 것을 목표로 합니다.
+다른 사람과 경쟁하기 위한 앱이 아니라, 과거의 나와 현재의 나를 비교하며 성장 과정을 확인하는 것이 목표입니다.
 
 ## 주요 기능
 
-### 보컬 분석 기능
+### 보컬 분석
 
 * 기준 보컬 WAV 파일 업로드
 * 내 보컬 WAV 파일 업로드
-* librosa.pyin() 기반 Pitch 추출
-* Pitch 비교 그래프
-* 키 차이 자동 추정
+* librosa.pyin() 기반 음정 추출
+* 음정 비교 그래프
+* 자동 키 차이 추정
 * 내부 키 보정
-* 시간축 자동 보정
-* Cent 단위 음정 오차 계산
+* 자동 시간 정렬
+* Cent 기반 음정 오차 계산
 * Accuracy 점수 계산
 * Stability 점수 계산
 * 구간별 Accuracy 분석
-* 최고음 / 최저음 검출
+* 최고음 / 최저음 구간 탐지
+* 음정 오차 시각화
 
-### 성장 기록 기능 (V2.5)
+### 성장 기록
 
 * records.json 저장
-* 성장 기록 대시보드
+* 보컬 기록 대시보드
 * 평균 Accuracy 계산
 * 평균 Stability 계산
 * 평균 키 차이 계산
 * 곡별 필터
 * 과거 녹음과 현재 녹음 비교
 * 개인 보컬 프로파일 생성
+
+### 실시간 튜너 (V3.0)
+
+* 실시간 마이크 음정 감지
+* 현재 주파수(Hz) 표시
+* 음 이름 표시 (C4, A3 등)
+* Cent 차이 표시
+* 실시간 튜닝 상태 표시
+
+  * Perfect
+  * Good
+  * High
+  * Low
+* 실시간 Cent Bar
+* Pitch Smoothing
+* Note Stabilization
+* Pitch Hold 시스템
+* 자동 마이크 노이즈 보정
+* 실시간 Stability 계산
 
 ## 사용 기술
 
@@ -44,6 +64,7 @@ Python과 Streamlit으로 개발한 개인용 보컬 분석 및 성장 기록 �
 * NumPy
 * Pandas
 * Matplotlib
+* SoundDevice
 
 ## 설치
 
@@ -53,29 +74,51 @@ pip install -r requirements.txt
 
 ## 실행
 
+### 메인 앱
+
 ```bash
 streamlit run app.py
 ```
 
-## 개발 목적
+### 실시간 튜너 테스트
 
-이 프로젝트는 단순한 음정 분석기가 아니라,
+```bash
+python real_time_pitch.py
+```
 
-"내가 얼마나 성장했는가?"
+## 프로젝트 구조
 
-를 기록하기 위한 개인 보컬 성장 도구로 개발되었습니다.
+```text
+app.py
+real_time_pitch.py
+realtime_tuner_engine.py
+translations.py
+requirements.txt
+README.md
+README_KR.md
+README_JP.md
+```
 
-다른 사람과 비교하지 않고, 과거의 나와 현재의 나를 비교하는 것을 핵심 목표로 합니다.
+## 로드맵
 
-## 향후 계획 (V3)
+### V3.0
 
-* 보컬 프로파일 강화
-* 기준 보컬 품질 평가
-* 성장 추이 그래프
-* 음역대 분석
-* AI 기반 코칭 피드백
-* 다국어 지원
-* 장기 성장 기록 기능
+* 실시간 튜너 MVP
+* 실시간 음정 감지
+* Stability 모니터링
+* 자동 노이즈 보정
+
+### V3.5
+
+* Always On Top 오버레이
+* VRChat 연습 지원
+
+### V4.0
+
+* 연습 세션 모드
+* 보컬 업적 시스템
+* 고급 보컬 프로파일
+* 성장 분석 대시보드
 
 ## 제작자
 
