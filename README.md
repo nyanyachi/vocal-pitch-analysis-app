@@ -7,9 +7,23 @@ Built with Streamlit and Librosa, the application provides pitch analysis, accur
 
 ## Overview
 
-This project is designed to help singers compare their vocal recordings with a reference vocal track and track their own improvement over time.
+Vocal Pitch Analysis App was created to provide singers with objective feedback on their vocal performance.
 
-The goal is not to compete with other singers, but to compare past recordings with current recordings and monitor personal growth.
+The application analyzes vocal recordings, compares them with a reference track, measures pitch accuracy and stability, and stores historical results to help users monitor improvement over time.
+
+In addition to offline analysis, the project includes a real-time tuner module for live pitch monitoring and vocal practice.
+
+## What This Project Demonstrates
+
+Python application development
+Audio signal processing using Librosa
+Interactive web application development with Streamlit
+Data visualization and user feedback systems
+JSON-based data storage and history tracking
+Real-time microphone input processing
+Multilingual application support
+Deployment and project maintenance workflows
+
 
 ## Features
 
