@@ -1,8 +1,12 @@
-# Vocal Pitch Analysis App
+## Vocal Pitch Analysis App
 
 A Python-based web application that helps singers analyze vocal recordings, compare performances against reference tracks, and track long-term vocal improvement through data-driven feedback.
 
 Built with Streamlit and Librosa, the application provides pitch analysis, accuracy measurement, stability tracking, and real-time tuning tools for vocal practice.
+
+## Live Demo
+
+🔗 vocal-pitch-analysis-app.streamlit.app
 
 
 ## Overview
