@@ -6,7 +6,7 @@ Built with Streamlit and Librosa, the application provides pitch analysis, accur
 
 ## Live Demo
 
-🔗 vocal-pitch-analysis-app.streamlit.app
+🔗 [vocal-pitch-analysis-app.streamlit.app](https://vocal-pitch-analysis-app.streamlit.app/)
 
 
 ## Overview
