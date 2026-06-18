@@ -15,14 +15,14 @@ In addition to offline analysis, the project includes a real-time tuner module f
 
 ## What This Project Demonstrates
 
-Python application development
-Audio signal processing using Librosa
-Interactive web application development with Streamlit
-Data visualization and user feedback systems
-JSON-based data storage and history tracking
-Real-time microphone input processing
-Multilingual application support
-Deployment and project maintenance workflows
+- Python application development
+- Audio signal processing using Librosa
+- Interactive web application development with Streamlit
+- Data visualization and user feedback systems
+- JSON-based data storage and history tracking
+- Real-time microphone input processing
+- Multilingual application support
+- Deployment and project maintenance workflows
 
 
 ## Features
@@ -73,15 +73,15 @@ Deployment and project maintenance workflows
 * Automatic microphone noise calibration
 * Real-time stability score
 
-## Technologies
+## Tech Stack
 
-* Python
-* Streamlit
-* Librosa
-* NumPy
-* Pandas
-* Matplotlib
-* SoundDevice
+- Python
+- Streamlit
+- Librosa
+- NumPy
+- Pandas
+- Matplotlib
+- SoundDevice
 
 ## Installation
 
@@ -128,7 +128,7 @@ README_JP.md
 ### V3.5
 
 * Always-on-top overlay mode
-* VRChat practice support
+* VR-compatible practice overlay support
 
 ### V4.0
 
