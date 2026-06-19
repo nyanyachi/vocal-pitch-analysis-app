@@ -77,6 +77,20 @@ In addition to offline analysis, the project includes a real-time tuner module f
 * Automatic microphone noise calibration
 * Real-time stability score
 
+### Desktop Overlay Tuner (V3.5)
+
+A Windows desktop overlay tuner that provides:
+
+- Real-time note detection
+- Cent difference visualization
+- Stability monitoring
+- Microphone selection
+- Always-on-top overlay mode
+
+Download:
+
+GitHub Releases
+
 ## Tech Stack
 
 - Python
