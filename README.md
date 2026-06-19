@@ -91,6 +91,10 @@ In addition to offline vocal analysis, the project includes a real-time tuner sy
 * Standalone Windows executable release
 * Optimized distribution size (121 MB → 21.8 MB)
 
+Download:
+
+[GitHub Releases](https://github.com/nyanyachi/vocal-pitch-analysis-app/releases/tag/v3.5.0)
+
 ## Tech Stack
 
 - Python
