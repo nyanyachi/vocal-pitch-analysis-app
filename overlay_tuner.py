@@ -12,14 +12,13 @@ import sounddevice as sd
 from realtime_tuner_engine import RealtimeTunerEngine
 
 audio_queue = queue.Queue()
-
 engine = RealtimeTunerEngine()
 
 SAMPLE_RATE = 44100
 BLOCK_SIZE = 2048
 
 WINDOW_WIDTH = 420
-WINDOW_HEIGHT = 280
+WINDOW_HEIGHT = 320
 
 CONFIG_FILE = "overlay_config.json"
 DEFAULT_X = 100
@@ -39,7 +38,6 @@ def load_config():
                 return json.load(f)
         except Exception:
             pass
-
     return {}
 
 
@@ -50,7 +48,6 @@ def save_config():
             "y": root.winfo_y(),
             "device_id": selected_device_id
         }
-
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4)
     except Exception:
@@ -105,17 +102,43 @@ def get_input_devices():
 
 def audio_callback(indata, frames, time_info, status):
     audio = indata[:, 0].copy()
-    audio_queue.put(audio)
+    volume = float(np.sqrt(np.mean(audio ** 2)))
+    peak = float(np.max(np.abs(audio)))
+    audio_queue.put((audio, volume, peak))
+
+
+def prepare_audio_for_analysis(audio):
+    peak = np.max(np.abs(audio))
+
+    if peak > 0:
+        audio = audio / peak * 0.3
+
+    return audio.astype(np.float32)
 
 
 def update_overlay():
     audio = None
+    volume = 0.0
+    peak = 0.0
 
     while not audio_queue.empty():
-        audio = audio_queue.get()
+        audio, volume, peak = audio_queue.get()
 
     if audio is not None:
-        result = engine.analyze_audio(audio)
+        volume_label.config(text=f"Input: {volume:.4f} / Peak: {peak:.4f}")
+
+        analysis_audio = prepare_audio_for_analysis(audio)
+
+        try:
+            result = engine.analyze_audio(analysis_audio)
+        except Exception as e:
+            note_label.config(text="ERR")
+            cent_label.config(text="Cent: --")
+            bar_label.config(text=make_cent_bar(None))
+            status_label.config(text="Engine Error")
+            stability_label.config(text=str(e)[:40])
+            root.after(30, update_overlay)
+            return
 
         if result["has_pitch"]:
             cent = result["cent_diff"]
@@ -158,7 +181,7 @@ def start_audio():
                 sd.sleep(100)
 
     except Exception as e:
-        status_message.config(text=f"Mic Error")
+        status_message.config(text=f"Mic Error: {e}")
 
 
 def restart_audio():
@@ -298,6 +321,15 @@ status_message = tk.Label(
     bg="black"
 )
 status_message.pack(pady=(2, 0))
+
+volume_label = tk.Label(
+    root,
+    text="Input: -- / Peak: --",
+    font=("Arial", 9),
+    fg="gray",
+    bg="black"
+)
+volume_label.pack(pady=(2, 0))
 
 hint_label = tk.Label(
     root,

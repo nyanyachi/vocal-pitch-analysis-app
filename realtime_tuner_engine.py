@@ -75,6 +75,7 @@ class RealtimeTunerEngine:
 
         center = width // 2
         position = round(center + (cent_diff / 50) * center)
+        position = max(0, min(width - 1, position))
 
         bar = ["-"] * width
         bar[center] = "|"
@@ -104,20 +105,15 @@ class RealtimeTunerEngine:
 
         return stability
 
-    def detect_pitch(self, audio):
-        audio = audio.astype(np.float32)
-
-        volume = np.max(np.abs(audio))
-
-        if volume < self.volume_threshold:
-            return None
-
+    def detect_pitch_pyin(self, audio):
         try:
             f0, voiced_flag, voiced_probs = librosa.pyin(
                 audio,
                 fmin=librosa.note_to_hz("C2"),
                 fmax=librosa.note_to_hz("C6"),
-                sr=self.sample_rate
+                sr=self.sample_rate,
+                frame_length=2048,
+                hop_length=256,
             )
 
             valid_f0 = f0[~np.isnan(f0)]
@@ -134,6 +130,67 @@ class RealtimeTunerEngine:
 
         except Exception:
             return None
+
+    def detect_pitch_fft(self, audio):
+        audio = audio.astype(np.float32)
+
+        if len(audio) < 512:
+            return None
+
+        audio = audio - np.mean(audio)
+
+        window = np.hanning(len(audio))
+        windowed_audio = audio * window
+
+        spectrum = np.fft.rfft(windowed_audio)
+        magnitude = np.abs(spectrum)
+
+        frequencies = np.fft.rfftfreq(len(audio), d=1.0 / self.sample_rate)
+
+        min_index = np.searchsorted(frequencies, self.min_frequency)
+        max_index = np.searchsorted(frequencies, self.max_frequency)
+
+        if max_index <= min_index:
+            return None
+
+        search_magnitude = magnitude[min_index:max_index]
+
+        if len(search_magnitude) == 0:
+            return None
+
+        peak_index = int(np.argmax(search_magnitude)) + min_index
+        peak_frequency = float(frequencies[peak_index])
+
+        if peak_frequency < self.min_frequency or peak_frequency > self.max_frequency:
+            return None
+
+        peak_strength = magnitude[peak_index]
+        average_strength = np.mean(search_magnitude) + 1e-8
+
+        if peak_strength < average_strength * 5:
+            return None
+
+        return peak_frequency
+
+    def detect_pitch(self, audio):
+        audio = audio.astype(np.float32)
+
+        volume = np.max(np.abs(audio))
+
+        if volume < self.volume_threshold:
+            return None
+
+        pitch = self.detect_pitch_pyin(audio)
+
+        if pitch is not None:
+            return pitch
+
+        pitch = self.detect_pitch_fft(audio)
+
+        if pitch is not None:
+            return pitch
+
+        return None
 
     def analyze_audio(self, audio):
         pitch = self.detect_pitch(audio)
