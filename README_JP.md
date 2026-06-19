@@ -176,27 +176,12 @@ Lite バージョンでは FFT ベースの軽量エンジンを採用し、パ�
 
 ## ロードマップ
 
-### V3.0
+### Completed
+- V3.0
+- V3.5
 
-* リアルタイムチューナー MVP
-* リアルタイムピッチ検出
-* Stability モニタリング
-* 自動ノイズ補正
-
-### V3.5
-
-* Always-On-Top オーバーレイ
-* デスクトップチューナー UI
-* マイクデバイス選択
-* EXE 配布
-
-### V3.6
-
-* OVR Toolkit 連携テスト
-* XSOverlay 表示テスト
-* VR 環境での練習サポート
-
-### V4.0
+### Next
+#### V4.0 
 
 * Practice Mode
 * Free Practice

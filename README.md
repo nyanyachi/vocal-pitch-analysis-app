@@ -160,19 +160,12 @@ README_JP.md
 
 ## Roadmap
 
-### V3.0
+### Completed
+- V3.0
+- V3.5
 
-* Real-time tuner MVP
-* Real-time pitch detection
-* Stability monitoring
-* Automatic noise calibration
-
-### V3.5
-
-* Always-on-top overlay mode
-* VR-compatible practice overlay support
-
-### V4.0
+### Next
+#### V4.0 
 
 * Practice session mode
 * Vocal achievements system

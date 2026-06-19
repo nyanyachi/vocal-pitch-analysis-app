@@ -176,27 +176,12 @@ Lite 버전은 FFT 기반 경량 엔진을 사용하여 패키지 크기를 121 
 
 ## 로드맵
 
-### V3.0
+### Completed
+- V3.0
+- V3.5
 
-* 실시간 튜너 MVP
-* 실시간 음정 감지
-* Stability 모니터링
-* 자동 노이즈 보정
-
-### V3.5
-
-* Always-On-Top 오버레이
-* 데스크톱 튜너 UI
-* 마이크 장치 선택
-* EXE 배포
-
-### V3.6
-
-* OVR Toolkit 연동 테스트
-* XSOverlay 표시 테스트
-* VR 환경 연습 지원
-
-### V4.0
+### Next
+#### V4.0 
 
 * Practice Mode
 * Free Practice
