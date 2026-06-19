@@ -1,7 +1,6 @@
 import math
 from collections import deque, Counter
 
-import librosa
 import numpy as np
 
 
@@ -105,34 +104,13 @@ class RealtimeTunerEngine:
 
         return stability
 
-    def detect_pitch_pyin(self, audio):
-        try:
-            f0, voiced_flag, voiced_probs = librosa.pyin(
-                audio,
-                fmin=librosa.note_to_hz("C2"),
-                fmax=librosa.note_to_hz("C6"),
-                sr=self.sample_rate,
-                frame_length=2048,
-                hop_length=256,
-            )
-
-            valid_f0 = f0[~np.isnan(f0)]
-
-            if len(valid_f0) == 0:
-                return None
-
-            pitch = float(np.median(valid_f0))
-
-            if pitch < self.min_frequency or pitch > self.max_frequency:
-                return None
-
-            return pitch
-
-        except Exception:
-            return None
-
     def detect_pitch_fft(self, audio):
         audio = audio.astype(np.float32)
+
+        volume = np.max(np.abs(audio))
+
+        if volume < self.volume_threshold:
+            return None
 
         if len(audio) < 512:
             return None
@@ -145,7 +123,10 @@ class RealtimeTunerEngine:
         spectrum = np.fft.rfft(windowed_audio)
         magnitude = np.abs(spectrum)
 
-        frequencies = np.fft.rfftfreq(len(audio), d=1.0 / self.sample_rate)
+        frequencies = np.fft.rfftfreq(
+            len(audio),
+            d=1.0 / self.sample_rate
+        )
 
         min_index = np.searchsorted(frequencies, self.min_frequency)
         max_index = np.searchsorted(frequencies, self.max_frequency)
@@ -167,30 +148,13 @@ class RealtimeTunerEngine:
         peak_strength = magnitude[peak_index]
         average_strength = np.mean(search_magnitude) + 1e-8
 
-        if peak_strength < average_strength * 5:
+        if peak_strength < average_strength * 4:
             return None
 
         return peak_frequency
 
     def detect_pitch(self, audio):
-        audio = audio.astype(np.float32)
-
-        volume = np.max(np.abs(audio))
-
-        if volume < self.volume_threshold:
-            return None
-
-        pitch = self.detect_pitch_pyin(audio)
-
-        if pitch is not None:
-            return pitch
-
-        pitch = self.detect_pitch_fft(audio)
-
-        if pitch is not None:
-            return pitch
-
-        return None
+        return self.detect_pitch_fft(audio)
 
     def analyze_audio(self, audio):
         pitch = self.detect_pitch(audio)

@@ -11,22 +11,25 @@ Built with Streamlit and Librosa, the application provides pitch analysis, accur
 
 ## Overview
 
-Vocal Pitch Analysis App was created to provide singers with objective feedback on their vocal performance.
+Vocal Pitch Analysis App was created to provide singers with objective feedback on their vocal performance and long-term vocal improvement.
 
-The application analyzes vocal recordings, compares them with a reference track, measures pitch accuracy and stability, and stores historical results to help users monitor improvement over time.
+The application analyzes vocal recordings, compares them with reference tracks, measures pitch accuracy and stability, and stores historical results to help users monitor progress over time.
 
-In addition to offline analysis, the project includes a real-time tuner module for live pitch monitoring and vocal practice.
+In addition to offline vocal analysis, the project includes a real-time tuner system and a lightweight desktop overlay tuner for live pitch monitoring during singing practice, recording sessions, and virtual performance environments.
+
 
 ## What This Project Demonstrates
 
 - Python application development
-- Audio signal processing using Librosa
-- Interactive web application development with Streamlit
-- Data visualization and user feedback systems
-- JSON-based data storage and history tracking
+- Audio signal processing and pitch analysis
 - Real-time microphone input processing
-- Multilingual application support
-- Deployment and project maintenance workflows
+- Interactive web application development with Streamlit
+- Desktop application development with Tkinter
+- Data visualization and user feedback systems
+- JSON-based data storage and progress tracking
+- Multilingual application design
+- Software packaging and release distribution
+- End-to-end project deployment and maintenance
 
 
 ## Features
@@ -65,11 +68,10 @@ In addition to offline analysis, the project includes a real-time tuner module f
 * Musical note detection
 * Cent difference display
 * Real-time tuning status
-
-  * Perfect
-  * Good
-  * High
-  * Low
+ * Perfect
+ * Good
+ * High
+ * Low
 * Real-time cent bar visualization
 * Pitch smoothing
 * Note stabilization
@@ -77,14 +79,27 @@ In addition to offline analysis, the project includes a real-time tuner module f
 * Automatic microphone noise calibration
 * Real-time stability score
 
+### Desktop Overlay Tuner (V3.5)
+* Always-on-top desktop overlay
+* Real-time note display
+* Real-time cent difference display
+* Visual cent bar feedback
+* Stability monitoring
+* Microphone device selection
+* Window position persistence
+* Lightweight FFT-based pitch detection engine
+* Standalone Windows executable release
+* Optimized distribution size (121 MB → 21.8 MB)
+
 ## Tech Stack
 
 - Python
 - Streamlit
-- Librosa
+- Tkinter
 - NumPy
 - Pandas
 - Matplotlib
+- Librosa
 - SoundDevice
 
 ## Installation
@@ -92,6 +107,20 @@ In addition to offline analysis, the project includes a real-time tuner module f
 ```bash
 pip install -r requirements.txt
 ```
+
+## Releases
+
+### Desktop Overlay Tuner
+
+Windows desktop builds are available through GitHub Releases.
+
+Current release:
+
+- V3.5.1 Lite
+- Lightweight FFT-based tuner engine
+- Reduced package size from 121 MB to 21.8 MB
+- Standalone executable distribution
+
 
 ## Run
 
@@ -105,6 +134,11 @@ streamlit run app.py
 
 ```bash
 python real_time_pitch.py
+```
+
+### Desktop Overlay Tuner
+```bash
+python overlay_tuner.py
 ```
 
 ## Project Structure
