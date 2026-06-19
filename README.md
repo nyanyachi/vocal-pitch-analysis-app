@@ -89,7 +89,7 @@ A Windows desktop overlay tuner that provides:
 
 Download:
 
-GitHub Releases
+[GitHub Releases](https://github.com/nyanyachi/vocal-pitch-analysis-app/releases/tag/v3.5.0)
 
 ## Tech Stack
 
