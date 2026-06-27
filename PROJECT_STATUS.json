@@ -1,0 +1,14 @@
+﻿{
+  "project_name": "Vocal Pitch App",
+  "version": "3.5.1 Lite",
+  "status": "Planning",
+  "priority": "High",
+  "progress": 85,
+  "current_goal": "V3.6 오버레이 실사용 테스트 후 V4.0 Practice Mode 설계 준비",
+  "next_action": "OVR Toolkit 또는 XSOverlay로 VRChat 옆에서 Lite 오버레이 튜너를 테스트하고 UI 크기, 투명도, 폰트, 미니모드 조정 필요 여부를 확인한다.",
+  "blockers": [
+    "V3.6 OVR Toolkit / XSOverlay 실사용 테스트가 아직 필요함",
+    "V4.0 Practice Mode 개발 전 실사용성 확인 필요"
+  ],
+  "last_updated": "2026-06-27"
+}
