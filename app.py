@@ -4,11 +4,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tempfile
 import json
+import logging
 from datetime import datetime
 import os
 import pandas as pd
 
 from translations import TEXT
+
+
+logger = logging.getLogger(__name__)
+
+
+class AudioAnalysisError(Exception):
+    pass
 
 
 def remove_short_pitch_spikes(valid_times, valid_pitch, min_duration=0.2, jump_ratio=1.8):
@@ -193,17 +201,33 @@ def get_accuracy_comment(accuracy_score, t):
 
 
 def analyze_pitch(uploaded_file, label):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-        temp_file.write(uploaded_file.read())
-        temp_path = temp_file.name
+    temp_path = None
 
-    y, sr = librosa.load(temp_path)
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+            temp_path = temp_file.name
+            temp_file.write(uploaded_file.read())
 
-    f0, voiced_flag, voiced_probs = librosa.pyin(
-        y,
-        fmin=librosa.note_to_hz("C2"),
-        fmax=librosa.note_to_hz("C6")
-    )
+        y, sr = librosa.load(temp_path)
+
+        f0, voiced_flag, voiced_probs = librosa.pyin(
+            y,
+            fmin=librosa.note_to_hz("C2"),
+            fmax=librosa.note_to_hz("C6")
+        )
+    except Exception as exc:
+        logger.exception(
+            "Audio analysis failed for %s (%s)",
+            label,
+            getattr(uploaded_file, "name", "unknown file")
+        )
+        raise AudioAnalysisError from exc
+    finally:
+        if temp_path is not None:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                logger.exception("Failed to remove temporary audio file: %s", temp_path)
 
     times = librosa.times_like(f0, sr=sr)
 
@@ -288,6 +312,12 @@ def analyze_pitch(uploaded_file, label):
 if "comparison_record" not in st.session_state:
     st.session_state.comparison_record = None
 
+if "comparison_reference_file_id" not in st.session_state:
+    st.session_state.comparison_reference_file_id = None
+
+if "comparison_my_file_id" not in st.session_state:
+    st.session_state.comparison_my_file_id = None
+
 
 language = st.selectbox(
     "🌐 Language / 언어 / 言語",
@@ -311,8 +341,20 @@ with tab_analyze:
 
     song_name = st.text_input(t["song_input"], value="Unknown Song")
 
-    reference_file = st.file_uploader(t["ref_upload"], type=["wav"])
-    my_file = st.file_uploader(t["my_upload"], type=["wav"])
+    reference_file = st.file_uploader(t["ref_upload"], type=["wav"], key="reference_file")
+    my_file = st.file_uploader(t["my_upload"], type=["wav"], key="my_file")
+
+    reference_file_id = reference_file.file_id if reference_file is not None else None
+    my_file_id = my_file.file_id if my_file is not None else None
+
+    if st.session_state.comparison_record is not None:
+        uploads_changed = (
+            reference_file_id != st.session_state.comparison_reference_file_id
+            or my_file_id != st.session_state.comparison_my_file_id
+        )
+
+        if uploads_changed:
+            st.session_state.comparison_record = None
 
     if reference_file is not None:
         st.subheader(t["ref_preview"])
@@ -327,10 +369,26 @@ with tab_analyze:
             st.warning(t["need_files"])
         else:
             with st.spinner(t["analyzing"]):
-                ref_result = analyze_pitch(reference_file, t["ref_preview"])
-                my_result = analyze_pitch(my_file, t["my_preview"])
+                ref_error = False
+                my_error = False
 
-                if ref_result is None:
+                try:
+                    ref_result = analyze_pitch(reference_file, t["ref_preview"])
+                except AudioAnalysisError:
+                    ref_result = None
+                    ref_error = True
+                    st.error(t["audio_processing_error"].format(label=t["ref_preview"]))
+
+                try:
+                    my_result = analyze_pitch(my_file, t["my_preview"])
+                except AudioAnalysisError:
+                    my_result = None
+                    my_error = True
+                    st.error(t["audio_processing_error"].format(label=t["my_preview"]))
+
+                if ref_error or my_error:
+                    pass
+                elif ref_result is None:
                     st.warning(t["ref_pitch_not_found"])
                 elif my_result is None:
                     st.warning(t["my_pitch_not_found"])
@@ -341,6 +399,8 @@ with tab_analyze:
                         "reference": ref_result,
                         "my_vocal": my_result
                     }
+                    st.session_state.comparison_reference_file_id = reference_file_id
+                    st.session_state.comparison_my_file_id = my_file_id
 
 
     if st.session_state.comparison_record is not None:
@@ -378,11 +438,35 @@ with tab_analyze:
         # =========================
         st.subheader(t.get("analysis_summary", "분석 요약"))
 
+        def get_performance_label(score):
+            if score is None:
+                return None
+
+            try:
+                score = float(score)
+            except (TypeError, ValueError):
+                return None
+
+            if not np.isfinite(score):
+                return None
+            if score >= 90:
+                return t["performance_excellent"]
+            if score >= 80:
+                return t["performance_very_good"]
+            if score >= 70:
+                return t["performance_good"]
+            if score >= 60:
+                return t["performance_needs_practice"]
+            return t["performance_needs_focus"]
+
         col1, col2 = st.columns(2)
 
         with col1:
             if accuracy_result is not None:
                 st.metric("Accuracy", f"{accuracy_result['accuracy_score']}{t['point']}")
+                accuracy_label = get_performance_label(accuracy_result["accuracy_score"])
+                if accuracy_label is not None:
+                    st.caption(f"**{accuracy_label}**")
             else:
                 st.metric("Accuracy", t["calculation_failed"])
 
@@ -396,6 +480,9 @@ with tab_analyze:
 
             if accuracy_result is not None:
                 st.metric("Stability", f"{accuracy_result['stability_score']}{t['point']}")
+                stability_label = get_performance_label(accuracy_result["stability_score"])
+                if stability_label is not None:
+                    st.caption(f"**{stability_label}**")
             else:
                 st.metric("Stability", t["calculation_failed"])
 
@@ -409,35 +496,67 @@ with tab_analyze:
         # =========================
         # 코칭 요약
         # =========================
+        worst_time_range = None
+
         if accuracy_result is not None:
             st.subheader(t.get("coaching_summary", "코칭 요약"))
+            coaching_diagnosis = [
+                get_accuracy_comment(accuracy_result["accuracy_score"], t)
+            ]
 
             if accuracy_result["worst_segment"] is not None:
                 worst = accuracy_result["worst_segment"]
-                st.write(t["worst_segment"].format(
-                    start=worst["start"],
-                    end=worst["end"],
-                    avg_error=worst["avg_error"],
-                    accuracy=worst["accuracy"]
+                start_seconds = int(round(worst["start"]))
+                end_seconds = int(round(worst["end"]))
+                worst_time_range = (
+                    f"{start_seconds // 60:02d}:{start_seconds % 60:02d}–"
+                    f"{end_seconds // 60:02d}:{end_seconds % 60:02d}"
+                )
+                coaching_diagnosis.append(
+                    t["coaching_weakest"].format(time_range=worst_time_range)
+                )
+
+            if accuracy_result["stability_score"] < 70:
+                coaching_diagnosis.append(t["coaching_stability"])
+
+            if worst_time_range is not None:
+                coaching_diagnosis.append(t["coaching_priority_weakest"])
+            elif accuracy_result["accuracy_score"] < 70:
+                coaching_diagnosis.append(t["coaching_priority_accuracy"])
+            elif accuracy_result["stability_score"] < 70:
+                coaching_diagnosis.append(t["coaching_priority_stability"])
+
+            for diagnosis in coaching_diagnosis:
+                st.markdown(f"- {diagnosis}")
+
+        practice_recommendations = []
+
+        if accuracy_result is not None:
+            if worst_time_range is not None:
+                practice_recommendations.append((
+                    t["practice_weakest_title"],
+                    t["practice_weakest_body"].format(time_range=worst_time_range)
                 ))
 
-            if accuracy_result["highest_segment"] is not None:
-                high = accuracy_result["highest_segment"]
-                st.write(t["highest_segment"].format(
-                    start=high["start"],
-                    end=high["end"],
-                    avg_cent=high["avg_cent"]
+            if accuracy_result["accuracy_score"] < 70:
+                practice_recommendations.append((
+                    t["practice_accuracy_title"],
+                    t["practice_accuracy_body"]
                 ))
 
-            if accuracy_result["lowest_segment"] is not None:
-                low = accuracy_result["lowest_segment"]
-                st.write(t["lowest_segment"].format(
-                    start=low["start"],
-                    end=low["end"],
-                    avg_cent=low["avg_cent"]
+            if accuracy_result["stability_score"] < 70:
+                practice_recommendations.append((
+                    t["practice_stability_title"],
+                    t["practice_stability_body"]
                 ))
 
-            st.info(get_accuracy_comment(accuracy_result["accuracy_score"], t))
+        if practice_recommendations:
+            with st.container(border=True):
+                st.subheader(f"🎯 {t['todays_practice']}")
+
+                for priority, (title, body) in enumerate(practice_recommendations[:3], start=1):
+                    st.markdown(f"**{t['practice_priority'].format(number=priority)} · {title}**")
+                    st.write(body)
 
         # =========================
         # 그래프 영역
