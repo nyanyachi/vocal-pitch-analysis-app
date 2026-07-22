@@ -53,7 +53,9 @@ The repository also includes:
 * Desktop Overlay Tuner — an always-on-top Windows tuner with note, cent, stability, microphone selection, and position persistence
 * Command-Line Tuner — a local microphone test tool with pitch, note, cent, and stability output
 
-Current desktop release: **V3.5.1 Lite** — [Download from GitHub Releases](https://github.com/nyanyachi/vocal-pitch-analysis-app/releases)
+The main Vocal Pitch Analysis App runs as the Streamlit web app and is not distributed through GitHub Releases.
+
+The downloadable **V3.5.1 Lite** release is only the optional Windows Desktop Overlay Tuner: [Download the Desktop Overlay Tuner from GitHub Releases](https://github.com/nyanyachi/vocal-pitch-analysis-app/releases)
 
 ## Tech Stack
 
