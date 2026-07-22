@@ -327,6 +327,7 @@ language = st.selectbox(
 t = TEXT[language]
 
 st.title(t["title"])
+st.caption(t["app_version"])
 
 tab_analyze, tab_records = st.tabs([
     t["tab_analyze"],
