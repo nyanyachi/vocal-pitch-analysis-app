@@ -10,7 +10,29 @@ The Streamlit app is the main product. A Desktop Overlay Tuner and Command-Line 
 
 ## Screenshots
 
-(TODO)
+### Analysis Summary
+
+See Pitch Accuracy, Pitch Stability, performance labels, coaching feedback, and the next recommended practice steps at a glance.
+
+![Analysis Summary](images/Analysis%20Summary.PNG)
+
+### Pitch Analysis
+
+Review detailed pitch comparison and error graphs for the reference and personal vocal recordings.
+
+![Pitch Analysis](images/Pitch%20Analysis.PNG)
+
+### Upload Reference and Vocal Files
+
+Upload a reference vocal WAV file and your own vocal WAV file to begin the comparison.
+
+![Upload Reference and Vocal Files](images/Upload.PNG)
+
+### Audio Preview
+
+Preview both uploaded recordings before starting the analysis.
+
+![Audio Preview](images/Audio%20Preview.PNG)
 
 ## Demo GIF
 
@@ -30,17 +52,17 @@ Upload a reference vocal WAV file and your own vocal WAV file to compare pitch, 
 * Read a concise Coaching Summary based on the analysis
 * Follow up to three focused actions in Today's Practice
 * Find the weakest detected section with its exact time range
-* Review pitch comparison, corrected pitch, and cent-error graphs
+* Use Pitch Graph Comparison, corrected-pitch, and cent-error views to understand performance differences
 * Check estimated key difference, timing alignment, and highest and lowest notes
 
-### Growth Tracking
+### Growth History
 
 * Save analysis results locally to `records.json`
 * Review average Accuracy, Stability, and key difference
 * Filter history by song and compare older and newer recordings
 * Generate a Vocal Profile from saved performances
 
-### Language Support
+### Multilingual Support
 
 * Korean
 * English
@@ -55,7 +77,7 @@ The repository also includes:
 
 The main Vocal Pitch Analysis App runs as the Streamlit web app and is not distributed through GitHub Releases.
 
-The downloadable **V3.5.1 Lite** release is only the optional Windows Desktop Overlay Tuner: [Download the Desktop Overlay Tuner from GitHub Releases](https://github.com/nyanyachi/vocal-pitch-analysis-app/releases)
+The downloadable **Version 3.5.1 Lite** release is only the optional Windows Desktop Overlay Tuner: [Download the Desktop Overlay Tuner from GitHub Releases](https://github.com/nyanyachi/vocal-pitch-analysis-app/releases)
 
 ## Tech Stack
 
@@ -70,9 +92,16 @@ The downloadable **V3.5.1 Lite** release is only the optional Windows Desktop Ov
 
 ## Quick Start
 
+### 1. Clone
+
 ```bash
 git clone https://github.com/nyanyachi/vocal-pitch-analysis-app.git
 cd vocal-pitch-analysis-app
+```
+
+### 2. Create a Virtual Environment (Recommended)
+
+```bash
 python -m venv .venv
 ```
 
@@ -86,10 +115,15 @@ Activate the virtual environment:
 source .venv/bin/activate
 ```
 
-Install and run the main Streamlit app:
+### 3. Install Requirements
 
 ```bash
 pip install -r requirements.txt
+```
+
+### 4. Run Streamlit
+
+```bash
 streamlit run app.py
 ```
 
