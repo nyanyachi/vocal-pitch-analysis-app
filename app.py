@@ -19,6 +19,30 @@ class AudioAnalysisError(Exception):
     pass
 
 
+@st.cache_data(show_spinner=False)
+def load_records_data(file_path, file_mtime):
+    with open(file_path, "r", encoding="utf-8") as f:
+        try:
+            records = json.load(f)
+        except json.JSONDecodeError:
+            records = []
+
+    df = pd.DataFrame(records)
+
+    if len(records) > 0:
+        required_cols = ["song", "date", "accuracy_score", "stability_score", "estimated_key_shift"]
+        for col in required_cols:
+            if col not in df.columns:
+                df[col] = None
+
+        df["accuracy_score"] = pd.to_numeric(df["accuracy_score"], errors="coerce")
+        df["stability_score"] = pd.to_numeric(df["stability_score"], errors="coerce")
+        df["estimated_key_shift"] = pd.to_numeric(df["estimated_key_shift"], errors="coerce")
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    return records, df
+
+
 def remove_short_pitch_spikes(valid_times, valid_pitch, min_duration=0.2, jump_ratio=1.8):
     if len(valid_pitch) < 3:
         return valid_times, valid_pitch
@@ -215,6 +239,7 @@ def analyze_pitch(uploaded_file, label):
             fmin=librosa.note_to_hz("C2"),
             fmax=librosa.note_to_hz("C6")
         )
+        del voiced_flag, voiced_probs
     except Exception as exc:
         logger.exception(
             "Audio analysis failed for %s (%s)",
@@ -318,6 +343,18 @@ if "comparison_reference_file_id" not in st.session_state:
 if "comparison_my_file_id" not in st.session_state:
     st.session_state.comparison_my_file_id = None
 
+if "reference_analysis_file_id" not in st.session_state:
+    st.session_state.reference_analysis_file_id = None
+
+if "reference_analysis_result" not in st.session_state:
+    st.session_state.reference_analysis_result = None
+
+if "my_analysis_file_id" not in st.session_state:
+    st.session_state.my_analysis_file_id = None
+
+if "my_analysis_result" not in st.session_state:
+    st.session_state.my_analysis_result = None
+
 
 language = st.selectbox(
     "🌐 Language / 언어 / 言語",
@@ -348,6 +385,14 @@ with tab_analyze:
     reference_file_id = reference_file.file_id if reference_file is not None else None
     my_file_id = my_file.file_id if my_file is not None else None
 
+    if reference_file_id != st.session_state.reference_analysis_file_id:
+        st.session_state.reference_analysis_file_id = None
+        st.session_state.reference_analysis_result = None
+
+    if my_file_id != st.session_state.my_analysis_file_id:
+        st.session_state.my_analysis_file_id = None
+        st.session_state.my_analysis_result = None
+
     if st.session_state.comparison_record is not None:
         uploads_changed = (
             reference_file_id != st.session_state.comparison_reference_file_id
@@ -374,14 +419,24 @@ with tab_analyze:
                 my_error = False
 
                 try:
-                    ref_result = analyze_pitch(reference_file, t["ref_preview"])
+                    if reference_file_id == st.session_state.reference_analysis_file_id:
+                        ref_result = st.session_state.reference_analysis_result
+                    else:
+                        ref_result = analyze_pitch(reference_file, t["ref_preview"])
+                        st.session_state.reference_analysis_file_id = reference_file_id
+                        st.session_state.reference_analysis_result = ref_result
                 except AudioAnalysisError:
                     ref_result = None
                     ref_error = True
                     st.error(t["audio_processing_error"].format(label=t["ref_preview"]))
 
                 try:
-                    my_result = analyze_pitch(my_file, t["my_preview"])
+                    if my_file_id == st.session_state.my_analysis_file_id:
+                        my_result = st.session_state.my_analysis_result
+                    else:
+                        my_result = analyze_pitch(my_file, t["my_preview"])
+                        st.session_state.my_analysis_file_id = my_file_id
+                        st.session_state.my_analysis_result = my_result
                 except AudioAnalysisError:
                     my_result = None
                     my_error = True
@@ -394,11 +449,59 @@ with tab_analyze:
                 elif my_result is None:
                     st.warning(t["my_pitch_not_found"])
                 else:
+                    completed_record = st.session_state.comparison_record
+                    completed_pair_matches = (
+                        completed_record is not None
+                        and reference_file_id == st.session_state.comparison_reference_file_id
+                        and my_file_id == st.session_state.comparison_my_file_id
+                    )
+
+                    if completed_pair_matches:
+                        avg_diff = completed_record["avg_diff"]
+                        median_diff = completed_record["median_diff"]
+                        avg_semitone_diff = completed_record["avg_semitone_diff"]
+                        median_semitone_diff = completed_record["median_semitone_diff"]
+                        estimated_key_shift = completed_record["estimated_key_shift"]
+                        correction_ratio = completed_record["correction_ratio"]
+                        corrected_my_pitch = completed_record["corrected_my_pitch"]
+                        accuracy_result = completed_record["accuracy_result"]
+                    else:
+                        avg_diff = my_result["avg_pitch"] - ref_result["avg_pitch"]
+                        median_diff = my_result["median_pitch"] - ref_result["median_pitch"]
+
+                        avg_semitone_diff = calculate_semitone_diff(
+                            my_result["avg_pitch"],
+                            ref_result["avg_pitch"]
+                        )
+                        median_semitone_diff = calculate_semitone_diff(
+                            my_result["median_pitch"],
+                            ref_result["median_pitch"]
+                        )
+
+                        estimated_key_shift = round(median_semitone_diff)
+                        correction_ratio = 2 ** (-estimated_key_shift / 12)
+                        corrected_my_pitch = my_result["valid_pitch"] * correction_ratio
+
+                        accuracy_result = calculate_accuracy(
+                            ref_result["valid_times"],
+                            ref_result["valid_pitch"],
+                            my_result["valid_times"],
+                            corrected_my_pitch
+                        )
+
                     st.session_state.comparison_record = {
                         "song": song_name,
                         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "reference": ref_result,
-                        "my_vocal": my_result
+                        "my_vocal": my_result,
+                        "avg_diff": avg_diff,
+                        "median_diff": median_diff,
+                        "avg_semitone_diff": avg_semitone_diff,
+                        "median_semitone_diff": median_semitone_diff,
+                        "estimated_key_shift": estimated_key_shift,
+                        "correction_ratio": correction_ratio,
+                        "corrected_my_pitch": corrected_my_pitch,
+                        "accuracy_result": accuracy_result
                     }
                     st.session_state.comparison_reference_file_id = reference_file_id
                     st.session_state.comparison_my_file_id = my_file_id
@@ -409,30 +512,14 @@ with tab_analyze:
         ref = record["reference"]
         my = record["my_vocal"]
 
-        avg_diff = my["avg_pitch"] - ref["avg_pitch"]
-        median_diff = my["median_pitch"] - ref["median_pitch"]
-
-        avg_semitone_diff = calculate_semitone_diff(my["avg_pitch"], ref["avg_pitch"])
-        median_semitone_diff = calculate_semitone_diff(my["median_pitch"], ref["median_pitch"])
-
-        estimated_key_shift = round(median_semitone_diff)
-
-        correction_ratio = 2 ** (-estimated_key_shift / 12)
-        corrected_my_pitch = my["valid_pitch"] * correction_ratio
-
-        ref_stability = max(0, 100 - ref["pitch_std"])
-        my_stability = max(0, 100 - my["pitch_std"])
-
-        accuracy_result = calculate_accuracy(
-        ref["valid_times"],
-        ref["valid_pitch"],
-        my["valid_times"],
-        corrected_my_pitch
-    )
-
-        # Stability 계산
-        ref_stability = max(0, 100 - ref["pitch_std"])
-        my_stability = max(0, 100 - my["pitch_std"])
+        avg_diff = record["avg_diff"]
+        median_diff = record["median_diff"]
+        avg_semitone_diff = record["avg_semitone_diff"]
+        median_semitone_diff = record["median_semitone_diff"]
+        estimated_key_shift = record["estimated_key_shift"]
+        correction_ratio = record["correction_ratio"]
+        corrected_my_pitch = record["corrected_my_pitch"]
+        accuracy_result = record["accuracy_result"]
 
         # =========================
         # 핵심 결과 요약
@@ -583,6 +670,7 @@ with tab_analyze:
             ax.legend()
 
             st.pyplot(fig)
+            plt.close(fig)
 
         with graph_tab2:
             fig2, ax2 = plt.subplots(figsize=(12, 5))
@@ -600,6 +688,7 @@ with tab_analyze:
             ax2.legend()
 
             st.pyplot(fig2)
+            plt.close(fig2)
 
         with graph_tab3:
             if accuracy_result is not None:
@@ -623,6 +712,7 @@ with tab_analyze:
                 ax3.legend()
 
                 st.pyplot(fig3)
+                plt.close(fig3)
             else:
                 st.warning(t["cent_graph_unavailable"])
 
@@ -759,6 +849,7 @@ with tab_analyze:
             with open(records_file, "w", encoding="utf-8") as f:
                 json.dump(records, f, ensure_ascii=False, indent=4)
 
+            load_records_data.clear()
             st.success(t.get("save_success", "비교 분석 결과가 records.json에 저장되었습니다."))
 
 
@@ -771,27 +862,12 @@ with tab_records:
     if not os.path.exists(records_file):
         st.warning(t.get("no_records", "아직 저장된 분석 기록이 없습니다."))
     else:
-        try:
-            with open(records_file, "r", encoding="utf-8") as f:
-                records = json.load(f)
-        except json.JSONDecodeError:
-            records = []
+        records_file_mtime = os.path.getmtime(records_file)
+        records, df = load_records_data(records_file, records_file_mtime)
 
         if len(records) == 0:
             st.warning(t.get("no_records", "아직 저장된 분석 기록이 없습니다."))
         else:
-            df = pd.DataFrame(records)
-
-            required_cols = ["song", "date", "accuracy_score", "stability_score", "estimated_key_shift"]
-            for col in required_cols:
-                if col not in df.columns:
-                    df[col] = None
-
-            df["accuracy_score"] = pd.to_numeric(df["accuracy_score"], errors="coerce")
-            df["stability_score"] = pd.to_numeric(df["stability_score"], errors="coerce")
-            df["estimated_key_shift"] = pd.to_numeric(df["estimated_key_shift"], errors="coerce")
-            df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
             song_options = [t.get("all", "전체")] + sorted(df["song"].dropna().unique().tolist())
 
             selected_song = st.selectbox(
