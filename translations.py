@@ -57,17 +57,18 @@ TEXT = {'한국어': {'title': '보컬 음정 분석 앱',
          'average_summary': '🧾 평균 요약',
          'average_key_shift': '평균 키 차이',
          'vocal_profile': '🐾 냐냐치 보컬 프로파일',
-         'profile_template': '평균 Accuracy는 {avg_accuracy:.2f}점입니다.\n'
-                             '\n'
-                             '평균 Stability는 {avg_stability:.2f}점입니다.\n'
-                             '\n'
-                             '평균 키 차이는 {avg_key_shift:.2f}키입니다.\n'
-                             '\n'
-                             '가장 Accuracy가 높은 곡은 {best_accuracy_song}입니다.\n'
-                             '\n'
-                             '가장 Stability가 높은 곡은 {best_stability_song}입니다.\n'
-                             '\n'
-                             '현재 기준 가장 어려운 곡은 {hardest_song}입니다.',
+         'profile_scope_all': '저장된 전체 기록 기준',
+         'profile_scope_song': '선택한 곡 기준: {song}',
+         'profile_saved_performances': '저장된 연습 기록',
+         'profile_unique_songs': '고유 곡 수',
+         'profile_most_practiced_song': '가장 많이 연습한 곡: {song} ({count}회)',
+         'profile_observed_range': '저장 기록에서 관찰된 음역',
+         'profile_observed_lowest': '관찰된 최저음: {value}',
+         'profile_observed_highest': '관찰된 최고음: {value}',
+         'profile_range_width': '관찰된 음역 폭: {semitones:.2f} 반음',
+         'profile_best_accuracy': '최고 Accuracy 기록: {song} ({score:.2f}{point})',
+         'profile_best_stability': '최고 Stability 기록: {song} ({score:.2f}{point})',
+         'profile_insufficient_data': '관찰된 음역을 계산할 수 있는 기록이 부족합니다.',
          'record_list': '📋 저장된 기록 목록',
          'compare_title': '🔁 같은 곡 과거 vs 현재 비교',
          'compare_song_select': '비교할 곡 선택',
@@ -184,17 +185,18 @@ TEXT = {'한국어': {'title': '보컬 음정 분석 앱',
              'average_summary': '🧾 Average summary',
              'average_key_shift': 'Average key shift',
              'vocal_profile': '🐾 Nyanyachi vocal profile',
-             'profile_template': 'Average Accuracy is {avg_accuracy:.2f}.\n'
-                                 '\n'
-                                 'Average Stability is {avg_stability:.2f}.\n'
-                                 '\n'
-                                 'Average key shift is {avg_key_shift:.2f} keys.\n'
-                                 '\n'
-                                 'The song with the highest Accuracy is {best_accuracy_song}.\n'
-                                 '\n'
-                                 'The song with the highest Stability is {best_stability_song}.\n'
-                                 '\n'
-                                 'The most difficult song so far is {hardest_song}.',
+             'profile_scope_all': 'Scope: all saved performances',
+             'profile_scope_song': 'Scope: selected song — {song}',
+             'profile_saved_performances': 'Saved performances',
+             'profile_unique_songs': 'Unique songs',
+             'profile_most_practiced_song': 'Most-practiced song: {song} (record count: {count})',
+             'profile_observed_range': 'Observed range from saved recordings',
+             'profile_observed_lowest': 'Lowest observed note: {value}',
+             'profile_observed_highest': 'Highest observed note: {value}',
+             'profile_range_width': 'Observed range width: {semitones:.2f} semitones',
+             'profile_best_accuracy': 'Best Accuracy performance: {song} ({score:.2f}{point})',
+             'profile_best_stability': 'Best Stability performance: {song} ({score:.2f}{point})',
+             'profile_insufficient_data': 'There is not enough saved pitch data to calculate an observed range.',
              'record_list': '📋 Saved records',
              'compare_title': '🔁 Compare older vs newer recording',
              'compare_song_select': 'Select a song to compare',
@@ -316,17 +318,18 @@ TEXT = {'한국어': {'title': '보컬 음정 분석 앱',
          'average_summary': '🧾 平均サマリー',
          'average_key_shift': '平均キー差',
          'vocal_profile': '🐾 ニャニャチ ボーカルプロフィール',
-         'profile_template': '平均Accuracyは {avg_accuracy:.2f} 点です。\n'
-                             '\n'
-                             '平均Stabilityは {avg_stability:.2f} 点です。\n'
-                             '\n'
-                             '平均キー差は {avg_key_shift:.2f} キーです。\n'
-                             '\n'
-                             'Accuracyが最も高い曲は {best_accuracy_song} です。\n'
-                             '\n'
-                             'Stabilityが最も高い曲は {best_stability_song} です。\n'
-                             '\n'
-                             '現時点で最も難しい曲は {hardest_song} です。',
+         'profile_scope_all': '保存された全記録を対象',
+         'profile_scope_song': '選択した曲を対象: {song}',
+         'profile_saved_performances': '保存した練習記録',
+         'profile_unique_songs': '曲数',
+         'profile_most_practiced_song': '最も練習した曲: {song}（{count}回）',
+         'profile_observed_range': '保存記録で観察された音域',
+         'profile_observed_lowest': '観察された最低音: {value}',
+         'profile_observed_highest': '観察された最高音: {value}',
+         'profile_range_width': '観察された音域幅: {semitones:.2f}半音',
+         'profile_best_accuracy': 'Accuracy最高記録: {song}（{score:.2f}{point}）',
+         'profile_best_stability': 'Stability最高記録: {song}（{score:.2f}{point}）',
+         'profile_insufficient_data': '観察音域を計算できる記録が不足しています。',
          'record_list': '📋 保存された記録一覧',
          'compare_title': '🔁 同じ曲の過去 vs 現在 比較',
          'compare_song_select': '比較する曲を選択',

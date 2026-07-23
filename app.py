@@ -38,6 +38,11 @@ def load_records_data(file_path, file_mtime):
         df["accuracy_score"] = pd.to_numeric(df["accuracy_score"], errors="coerce")
         df["stability_score"] = pd.to_numeric(df["stability_score"], errors="coerce")
         df["estimated_key_shift"] = pd.to_numeric(df["estimated_key_shift"], errors="coerce")
+
+        for col in ["my_lowest_pitch", "my_highest_pitch"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
     return records, df
@@ -899,31 +904,99 @@ with tab_records:
 
             st.markdown(f"### {t.get('vocal_profile', '🐾 냐냐치 보컬 프로파일')}")
 
-            if view_df["accuracy_score"].notna().any():
-                best_accuracy = view_df.loc[view_df["accuracy_score"].idxmax()]
-                hardest_song = view_df.loc[view_df["accuracy_score"].idxmin()]
+            if selected_song == t.get("all", "전체"):
+                st.caption(t["profile_scope_all"])
             else:
-                best_accuracy = None
-                hardest_song = None
+                st.caption(t["profile_scope_song"].format(song=selected_song))
 
-            if view_df["stability_score"].notna().any():
-                best_stability = view_df.loc[view_df["stability_score"].idxmax()]
-            else:
-                best_stability = None
+            saved_performances = len(view_df)
+            valid_songs = view_df["song"].dropna()
+            valid_songs = valid_songs[valid_songs.astype(str).str.strip() != ""]
+            unique_songs = valid_songs.nunique()
 
-            profile_text = t.get(
-                "profile_template",
-                "평균 Accuracy는 {avg_accuracy:.2f}점입니다.\n\n평균 Stability는 {avg_stability:.2f}점입니다.\n\n평균 키 차이는 {avg_key_shift:.2f}키입니다.\n\n가장 Accuracy가 높은 곡은 {best_accuracy_song}입니다.\n\n가장 Stability가 높은 곡은 {best_stability_song}입니다.\n\n현재 기준 가장 어려운 곡은 {hardest_song}입니다."
-            )
+            profile_col1, profile_col2 = st.columns(2)
 
-            st.info(profile_text.format(
-                avg_accuracy=avg_accuracy,
-                avg_stability=avg_stability,
-                avg_key_shift=avg_key_shift,
-                best_accuracy_song=best_accuracy["song"] if best_accuracy is not None else "-",
-                best_stability_song=best_stability["song"] if best_stability is not None else "-",
-                hardest_song=hardest_song["song"] if hardest_song is not None else "-"
-            ))
+            with profile_col1:
+                st.metric(t["profile_saved_performances"], saved_performances)
+
+            with profile_col2:
+                st.metric(t["profile_unique_songs"], unique_songs)
+
+            song_counts = valid_songs.value_counts()
+            if len(song_counts) > 0:
+                highest_count = song_counts.iloc[0]
+                if (song_counts == highest_count).sum() == 1:
+                    st.write(t["profile_most_practiced_song"].format(
+                        song=song_counts.index[0],
+                        count=int(highest_count)
+                    ))
+
+            st.markdown(f"**{t['profile_observed_range']}**")
+
+            lowest_record = None
+            highest_record = None
+
+            if "my_lowest_pitch" in view_df.columns:
+                valid_lowest = view_df["my_lowest_pitch"].dropna()
+                valid_lowest = valid_lowest[np.isfinite(valid_lowest) & (valid_lowest > 0)]
+                if len(valid_lowest) > 0:
+                    lowest_record = view_df.loc[valid_lowest.idxmin()]
+
+            if "my_highest_pitch" in view_df.columns:
+                valid_highest = view_df["my_highest_pitch"].dropna()
+                valid_highest = valid_highest[np.isfinite(valid_highest) & (valid_highest > 0)]
+                if len(valid_highest) > 0:
+                    highest_record = view_df.loc[valid_highest.idxmax()]
+
+            if lowest_record is not None:
+                lowest_pitch = float(lowest_record["my_lowest_pitch"])
+                lowest_note = lowest_record.get("my_lowest_note")
+                if pd.isna(lowest_note) or str(lowest_note).strip() == "":
+                    lowest_value = f"{lowest_pitch:.2f} Hz"
+                else:
+                    lowest_value = f"{lowest_note} ({lowest_pitch:.2f} Hz)"
+                st.write(t["profile_observed_lowest"].format(value=lowest_value))
+
+            if highest_record is not None:
+                highest_pitch = float(highest_record["my_highest_pitch"])
+                highest_note = highest_record.get("my_highest_note")
+                if pd.isna(highest_note) or str(highest_note).strip() == "":
+                    highest_value = f"{highest_pitch:.2f} Hz"
+                else:
+                    highest_value = f"{highest_note} ({highest_pitch:.2f} Hz)"
+                st.write(t["profile_observed_highest"].format(value=highest_value))
+
+            if lowest_record is not None and highest_record is not None and highest_pitch >= lowest_pitch:
+                range_width = 12 * np.log2(highest_pitch / lowest_pitch)
+                st.write(t["profile_range_width"].format(semitones=range_width))
+            elif lowest_record is None and highest_record is None:
+                st.info(t["profile_insufficient_data"])
+
+            valid_accuracy = view_df["accuracy_score"].dropna()
+            valid_accuracy = valid_accuracy[np.isfinite(valid_accuracy)]
+            if len(valid_accuracy) > 0:
+                best_accuracy = view_df.loc[valid_accuracy.idxmax()]
+                best_accuracy_song = best_accuracy.get("song")
+                if pd.isna(best_accuracy_song) or str(best_accuracy_song).strip() == "":
+                    best_accuracy_song = "-"
+                st.write(t["profile_best_accuracy"].format(
+                    song=best_accuracy_song,
+                    score=best_accuracy["accuracy_score"],
+                    point=t["point"]
+                ))
+
+            valid_stability = view_df["stability_score"].dropna()
+            valid_stability = valid_stability[np.isfinite(valid_stability)]
+            if len(valid_stability) > 0:
+                best_stability = view_df.loc[valid_stability.idxmax()]
+                best_stability_song = best_stability.get("song")
+                if pd.isna(best_stability_song) or str(best_stability_song).strip() == "":
+                    best_stability_song = "-"
+                st.write(t["profile_best_stability"].format(
+                    song=best_stability_song,
+                    score=best_stability["stability_score"],
+                    point=t["point"]
+                ))
 
             st.markdown(f"### {t.get('record_list', '📋 저장된 기록 목록')}")
 
