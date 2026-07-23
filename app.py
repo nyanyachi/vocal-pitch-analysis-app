@@ -77,6 +77,79 @@ def remove_short_pitch_spikes(valid_times, valid_pitch, min_duration=0.2, jump_r
     return np.array(cleaned_times), np.array(cleaned_pitch)
 
 
+def create_pitch_distribution_summary(valid_pitch):
+    pitch_values = np.asarray(valid_pitch, dtype=float)
+    pitch_values = pitch_values[np.isfinite(pitch_values) & (pitch_values > 0)]
+
+    if pitch_values.size == 0:
+        return {
+            "my_pitch_histogram": {},
+            "my_pitch_frame_count": 0,
+            "my_pitch_p10": None,
+            "my_pitch_p90": None,
+            "my_pitch_p10_note": None,
+            "my_pitch_p90_note": None,
+            "my_most_used_midi": None,
+            "my_most_used_note": None,
+        }
+
+    midi_values = librosa.hz_to_midi(pitch_values)
+    midi_bins = np.floor(midi_values + 0.5).astype(int)
+    unique_midi, counts = np.unique(midi_bins, return_counts=True)
+    histogram = {
+        str(int(midi)): int(count)
+        for midi, count in zip(unique_midi, counts)
+    }
+
+    max_count = int(np.max(counts))
+    most_used_midi = int(np.min(unique_midi[counts == max_count]))
+    pitch_p10 = round(float(np.percentile(pitch_values, 10)), 2)
+    pitch_p90 = round(float(np.percentile(pitch_values, 90)), 2)
+
+    return {
+        "my_pitch_histogram": histogram,
+        "my_pitch_frame_count": int(pitch_values.size),
+        "my_pitch_p10": pitch_p10,
+        "my_pitch_p90": pitch_p90,
+        "my_pitch_p10_note": librosa.hz_to_note(pitch_p10),
+        "my_pitch_p90_note": librosa.hz_to_note(pitch_p90),
+        "my_most_used_midi": most_used_midi,
+        "my_most_used_note": librosa.midi_to_note(most_used_midi),
+    }
+
+
+def normalize_pitch_histogram(histogram):
+    if not isinstance(histogram, dict):
+        return []
+
+    normalized = {}
+
+    for raw_midi, raw_count in histogram.items():
+        if isinstance(raw_midi, bool) or isinstance(raw_count, bool):
+            continue
+
+        try:
+            midi_value = float(raw_midi)
+            count_value = float(raw_count)
+        except (TypeError, ValueError):
+            continue
+
+        if not np.isfinite(midi_value) or not np.isfinite(count_value):
+            continue
+        if not midi_value.is_integer() or not count_value.is_integer():
+            continue
+
+        midi = int(midi_value)
+        count = int(count_value)
+
+        if midi < 0 or midi > 127 or count <= 0:
+            continue
+
+        normalized[midi] = normalized.get(midi, 0) + count
+
+    return sorted(normalized.items())
+
+
 def calculate_semitone_diff(my_pitch, ref_pitch):
     if my_pitch <= 0 or ref_pitch <= 0:
         return 0
@@ -801,6 +874,8 @@ with tab_analyze:
                 else:
                     st.warning(t["stability_unavailable"])
 
+        pitch_distribution = create_pitch_distribution_summary(my["valid_pitch"])
+
         save_record = {
             "song": record["song"],
             "date": record["date"],
@@ -837,7 +912,15 @@ with tab_analyze:
             "worst_segment_start": accuracy_result["worst_segment"]["start"] if accuracy_result and accuracy_result["worst_segment"] else None,
             "worst_segment_end": accuracy_result["worst_segment"]["end"] if accuracy_result and accuracy_result["worst_segment"] else None,
             "worst_segment_avg_error": accuracy_result["worst_segment"]["avg_error"] if accuracy_result and accuracy_result["worst_segment"] else None,
-            "worst_segment_accuracy": accuracy_result["worst_segment"]["accuracy"] if accuracy_result and accuracy_result["worst_segment"] else None
+            "worst_segment_accuracy": accuracy_result["worst_segment"]["accuracy"] if accuracy_result and accuracy_result["worst_segment"] else None,
+            "my_pitch_histogram": pitch_distribution["my_pitch_histogram"],
+            "my_pitch_frame_count": pitch_distribution["my_pitch_frame_count"],
+            "my_pitch_p10": pitch_distribution["my_pitch_p10"],
+            "my_pitch_p90": pitch_distribution["my_pitch_p90"],
+            "my_pitch_p10_note": pitch_distribution["my_pitch_p10_note"],
+            "my_pitch_p90_note": pitch_distribution["my_pitch_p90_note"],
+            "my_most_used_midi": pitch_distribution["my_most_used_midi"],
+            "my_most_used_note": pitch_distribution["my_most_used_note"]
         }
 
         if st.button(t.get("save_button", "비교 분석 결과 저장")):
@@ -997,6 +1080,77 @@ with tab_records:
                     score=best_stability["stability_score"],
                     point=t["point"]
                 ))
+
+            st.markdown(f"### {t['pitch_distribution_title']}")
+
+            distribution_record_index = st.selectbox(
+                t["pitch_distribution_record_select"],
+                view_df.index.tolist(),
+                format_func=lambda index: (
+                    f"{view_df.loc[index].get('song', '-')} — "
+                    f"{view_df.loc[index].get('date', '-')}"
+                )
+            )
+            distribution_record = view_df.loc[distribution_record_index]
+            normalized_histogram = normalize_pitch_histogram(
+                distribution_record.get("my_pitch_histogram")
+            )
+
+            if len(normalized_histogram) == 0:
+                st.info(t["pitch_distribution_no_data"])
+            else:
+                most_used_note = distribution_record.get("my_most_used_note")
+                if pd.isna(most_used_note) or str(most_used_note).strip() == "":
+                    most_used_note = "-"
+
+                p10_note = distribution_record.get("my_pitch_p10_note")
+                p90_note = distribution_record.get("my_pitch_p90_note")
+                if (
+                    pd.isna(p10_note)
+                    or pd.isna(p90_note)
+                    or str(p10_note).strip() == ""
+                    or str(p90_note).strip() == ""
+                ):
+                    percentile_range = "-"
+                else:
+                    percentile_range = f"{p10_note} – {p90_note}"
+
+                frame_count = distribution_record.get("my_pitch_frame_count", 0)
+                try:
+                    frame_count = int(frame_count)
+                    if frame_count < 0:
+                        frame_count = 0
+                except (TypeError, ValueError, OverflowError):
+                    frame_count = 0
+
+                distribution_col1, distribution_col2, distribution_col3 = st.columns(3)
+                distribution_col1.metric(
+                    t["pitch_distribution_most_used_note"],
+                    most_used_note
+                )
+                distribution_col2.metric(
+                    t["pitch_distribution_percentile_range"],
+                    percentile_range
+                )
+                distribution_col3.metric(
+                    t["pitch_distribution_frame_count"],
+                    frame_count
+                )
+
+                midi_values = [midi for midi, _ in normalized_histogram]
+                pitch_counts = [count for _, count in normalized_histogram]
+                note_names = [librosa.midi_to_note(midi) for midi in midi_values]
+
+                fig4, ax4 = plt.subplots(figsize=(10, 4))
+                ax4.bar(note_names, pitch_counts)
+                ax4.set_xlabel(t["pitch_distribution_x_axis"])
+                ax4.set_ylabel(t["pitch_distribution_y_axis"])
+                ax4.tick_params(axis="x", rotation=45)
+                fig4.tight_layout()
+                try:
+                    st.pyplot(fig4)
+                finally:
+                    plt.close(fig4)
 
             st.markdown(f"### {t.get('record_list', '📋 저장된 기록 목록')}")
 
