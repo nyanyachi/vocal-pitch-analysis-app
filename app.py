@@ -2,9 +2,11 @@ import streamlit as st
 import librosa
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import tempfile
 import json
 import logging
+import re
 from datetime import datetime
 import os
 import pandas as pd
@@ -46,6 +48,36 @@ def load_records_data(file_path, file_mtime):
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
     return records, df
+
+
+def normalize_song_group(song_name):
+    if song_name is None or not isinstance(song_name, str):
+        return None
+
+    original_title = song_name.strip()
+    if original_title == "":
+        return ""
+
+    normalized_title = re.sub(
+        r"^\d{4}/\d{2}/\d{2}-",
+        "",
+        original_title,
+        count=1,
+    )
+    normalized_title = re.sub(
+        r"_\d{4}-\d{2}-\d{2}$",
+        "",
+        normalized_title,
+        count=1,
+    )
+    normalized_title = re.sub(
+        r"_(?:과거|현재)$",
+        "",
+        normalized_title,
+        count=1,
+    ).strip()
+
+    return normalized_title if normalized_title else original_title
 
 
 def remove_short_pitch_spikes(valid_times, valid_pitch, min_duration=0.2, jump_ratio=1.8):
@@ -148,6 +180,83 @@ def normalize_pitch_histogram(histogram):
         normalized[midi] = normalized.get(midi, 0) + count
 
     return sorted(normalized.items())
+
+
+def prepare_practice_history_data(view_df):
+    chronological_columns = [
+        "parsed_date",
+        "accuracy_score",
+        "stability_score",
+        "original_order",
+    ]
+    accuracy_columns = ["parsed_date", "accuracy_score", "original_order"]
+    stability_columns = ["parsed_date", "stability_score", "original_order"]
+
+    if not isinstance(view_df, pd.DataFrame) or view_df.empty:
+        return {
+            "total_record_count": 0,
+            "dated_record_count": 0,
+            "chronological_records": pd.DataFrame(columns=chronological_columns),
+            "accuracy_series": pd.DataFrame(columns=accuracy_columns),
+            "stability_series": pd.DataFrame(columns=stability_columns),
+        }
+
+    history_df = view_df.copy()
+    history_df["original_order"] = np.arange(len(history_df), dtype=int)
+
+    if "date" in history_df.columns:
+        history_df["parsed_date"] = pd.to_datetime(
+            history_df["date"],
+            errors="coerce",
+        )
+    else:
+        history_df["parsed_date"] = pd.NaT
+
+    for score_column in ["accuracy_score", "stability_score"]:
+        if score_column in history_df.columns:
+            numeric_scores = pd.to_numeric(
+                history_df[score_column],
+                errors="coerce",
+            )
+            valid_scores = (
+                np.isfinite(numeric_scores)
+                & numeric_scores.between(0, 100, inclusive="both")
+            )
+            history_df[score_column] = numeric_scores.where(valid_scores)
+        else:
+            history_df[score_column] = np.nan
+
+    chronological_records = (
+        history_df.loc[history_df["parsed_date"].notna(), chronological_columns]
+        .sort_values(
+            ["parsed_date", "original_order"],
+            kind="mergesort",
+        )
+        .reset_index(drop=True)
+    )
+
+    accuracy_series = (
+        chronological_records.loc[
+            chronological_records["accuracy_score"].notna(),
+            accuracy_columns,
+        ]
+        .reset_index(drop=True)
+    )
+    stability_series = (
+        chronological_records.loc[
+            chronological_records["stability_score"].notna(),
+            stability_columns,
+        ]
+        .reset_index(drop=True)
+    )
+
+    return {
+        "total_record_count": int(len(history_df)),
+        "dated_record_count": int(len(chronological_records)),
+        "chronological_records": chronological_records,
+        "accuracy_series": accuracy_series,
+        "stability_series": stability_series,
+    }
 
 
 def calculate_semitone_diff(my_pitch, ref_pitch):
@@ -956,7 +1065,13 @@ with tab_records:
         if len(records) == 0:
             st.warning(t.get("no_records", "아직 저장된 분석 기록이 없습니다."))
         else:
-            song_options = [t.get("all", "전체")] + sorted(df["song"].dropna().unique().tolist())
+            records_view_df = df.copy()
+            records_view_df["_song_group"] = records_view_df["song"].map(
+                normalize_song_group
+            )
+            song_options = [t.get("all", "전체")] + sorted(
+                records_view_df["_song_group"].dropna().unique().tolist()
+            )
 
             selected_song = st.selectbox(
                 t.get("song_filter", "곡별 필터"),
@@ -964,9 +1079,11 @@ with tab_records:
             )
 
             if selected_song != t.get("all", "전체"):
-                view_df = df[df["song"] == selected_song]
+                view_df = records_view_df[
+                    records_view_df["_song_group"] == selected_song
+                ]
             else:
-                view_df = df
+                view_df = records_view_df
 
             st.markdown(f"### {t.get('average_summary', '🧾 평균 요약')}")
 
@@ -985,6 +1102,191 @@ with tab_records:
             with col3:
                 st.metric(t["average_key_shift"], f"{avg_key_shift:.2f}{t['key_unit']}")
 
+            st.markdown(f"### {t['practice_history_title']}")
+
+            history_data = prepare_practice_history_data(view_df)
+            accuracy_history = history_data["accuracy_series"]
+            stability_history = history_data["stability_series"]
+
+            if selected_song == t.get("all", "전체"):
+                st.caption(t["practice_history_scope_all"])
+                st.info(t["practice_history_mixed_songs_notice"])
+            else:
+                st.caption(t["practice_history_scope_song"].format(song=selected_song))
+
+            history_count_col1, history_count_col2 = st.columns(2)
+            history_count_col1.metric(
+                t["practice_history_saved_count"],
+                history_data["total_record_count"],
+            )
+            history_count_col2.metric(
+                t["practice_history_plotted_count"],
+                history_data["dated_record_count"],
+            )
+
+            if selected_song != t.get("all", "전체"):
+                unavailable = t["practice_history_unavailable"]
+
+                if accuracy_history.empty:
+                    first_accuracy = unavailable
+                    latest_accuracy = unavailable
+                    accuracy_change = unavailable
+                else:
+                    first_accuracy_value = float(
+                        accuracy_history.iloc[0]["accuracy_score"]
+                    )
+                    latest_accuracy_value = float(
+                        accuracy_history.iloc[-1]["accuracy_score"]
+                    )
+                    accuracy_change_value = round(
+                        latest_accuracy_value - first_accuracy_value,
+                        1,
+                    )
+                    first_accuracy = f"{first_accuracy_value:.1f}"
+                    latest_accuracy = f"{latest_accuracy_value:.1f}"
+                    accuracy_change = (
+                        "0.0"
+                        if accuracy_change_value == 0
+                        else f"{accuracy_change_value:+.1f}"
+                    )
+
+                accuracy_col1, accuracy_col2, accuracy_col3 = st.columns(3)
+                accuracy_col1.metric(
+                    t["practice_history_first_accuracy"],
+                    first_accuracy,
+                )
+                accuracy_col2.metric(
+                    t["practice_history_latest_accuracy"],
+                    latest_accuracy,
+                )
+                accuracy_col3.metric(
+                    t["practice_history_accuracy_change"],
+                    accuracy_change,
+                )
+
+                if stability_history.empty:
+                    first_stability = unavailable
+                    latest_stability = unavailable
+                    stability_change = unavailable
+                else:
+                    first_stability_value = float(
+                        stability_history.iloc[0]["stability_score"]
+                    )
+                    latest_stability_value = float(
+                        stability_history.iloc[-1]["stability_score"]
+                    )
+                    stability_change_value = round(
+                        latest_stability_value - first_stability_value,
+                        1,
+                    )
+                    first_stability = f"{first_stability_value:.1f}"
+                    latest_stability = f"{latest_stability_value:.1f}"
+                    stability_change = (
+                        "0.0"
+                        if stability_change_value == 0
+                        else f"{stability_change_value:+.1f}"
+                    )
+
+                stability_col1, stability_col2, stability_col3 = st.columns(3)
+                stability_col1.metric(
+                    t["practice_history_first_stability"],
+                    first_stability,
+                )
+                stability_col2.metric(
+                    t["practice_history_latest_stability"],
+                    latest_stability,
+                )
+                stability_col3.metric(
+                    t["practice_history_stability_change"],
+                    stability_change,
+                )
+
+            if accuracy_history.empty and stability_history.empty:
+                st.info(t["practice_history_no_data"])
+            else:
+                if history_data["dated_record_count"] == 1:
+                    st.caption(t["practice_history_one_record"])
+
+                if not accuracy_history.empty:
+                    st.markdown(f"**{t['practice_history_accuracy']}**")
+                    accuracy_fig, accuracy_ax = plt.subplots(figsize=(10, 3.2))
+                    accuracy_ax.plot(
+                        accuracy_history["parsed_date"],
+                        accuracy_history["accuracy_score"],
+                        marker="o",
+                    )
+                    accuracy_dates = (
+                        accuracy_history["parsed_date"]
+                        .drop_duplicates()
+                        .sort_values()
+                    )
+                    if len(accuracy_dates) > 12:
+                        accuracy_tick_indices = np.linspace(
+                            0,
+                            len(accuracy_dates) - 1,
+                            12,
+                            dtype=int,
+                        )
+                        accuracy_tick_dates = accuracy_dates.iloc[
+                            np.unique(accuracy_tick_indices)
+                        ]
+                    else:
+                        accuracy_tick_dates = accuracy_dates
+
+                    accuracy_ax.set_xticks(accuracy_tick_dates)
+                    accuracy_ax.xaxis.set_major_formatter(
+                        mdates.DateFormatter("%Y-%m-%d")
+                    )
+                    accuracy_ax.set_xlabel("Saved Date")
+                    accuracy_ax.set_ylabel("Score")
+                    accuracy_ax.set_ylim(0, 100)
+                    accuracy_ax.tick_params(axis="x", rotation=45)
+                    accuracy_fig.tight_layout()
+                    try:
+                        st.pyplot(accuracy_fig)
+                    finally:
+                        plt.close(accuracy_fig)
+
+                if not stability_history.empty:
+                    st.markdown(f"**{t['practice_history_stability']}**")
+                    stability_fig, stability_ax = plt.subplots(figsize=(10, 3.2))
+                    stability_ax.plot(
+                        stability_history["parsed_date"],
+                        stability_history["stability_score"],
+                        marker="o",
+                    )
+                    stability_dates = (
+                        stability_history["parsed_date"]
+                        .drop_duplicates()
+                        .sort_values()
+                    )
+                    if len(stability_dates) > 12:
+                        stability_tick_indices = np.linspace(
+                            0,
+                            len(stability_dates) - 1,
+                            12,
+                            dtype=int,
+                        )
+                        stability_tick_dates = stability_dates.iloc[
+                            np.unique(stability_tick_indices)
+                        ]
+                    else:
+                        stability_tick_dates = stability_dates
+
+                    stability_ax.set_xticks(stability_tick_dates)
+                    stability_ax.xaxis.set_major_formatter(
+                        mdates.DateFormatter("%Y-%m-%d")
+                    )
+                    stability_ax.set_xlabel("Saved Date")
+                    stability_ax.set_ylabel("Score")
+                    stability_ax.set_ylim(0, 100)
+                    stability_ax.tick_params(axis="x", rotation=45)
+                    stability_fig.tight_layout()
+                    try:
+                        st.pyplot(stability_fig)
+                    finally:
+                        plt.close(stability_fig)
+
             st.markdown(f"### {t.get('vocal_profile', '🐾 냐냐치 보컬 프로파일')}")
 
             if selected_song == t.get("all", "전체"):
@@ -993,9 +1295,15 @@ with tab_records:
                 st.caption(t["profile_scope_song"].format(song=selected_song))
 
             saved_performances = len(view_df)
-            valid_songs = view_df["song"].dropna()
-            valid_songs = valid_songs[valid_songs.astype(str).str.strip() != ""]
-            unique_songs = valid_songs.nunique()
+            if "_song_group" in view_df.columns:
+                song_groups = view_df["_song_group"]
+            else:
+                song_groups = view_df["song"].map(normalize_song_group)
+            valid_song_groups = song_groups.dropna()
+            valid_song_groups = valid_song_groups[
+                valid_song_groups.astype(str).str.strip() != ""
+            ]
+            unique_songs = valid_song_groups.nunique()
 
             profile_col1, profile_col2 = st.columns(2)
 
@@ -1005,7 +1313,7 @@ with tab_records:
             with profile_col2:
                 st.metric(t["profile_unique_songs"], unique_songs)
 
-            song_counts = valid_songs.value_counts()
+            song_counts = valid_song_groups.value_counts()
             if len(song_counts) > 0:
                 highest_count = song_counts.iloc[0]
                 if (song_counts == highest_count).sum() == 1:
@@ -1175,17 +1483,25 @@ with tab_records:
 
             st.markdown(f"### {t.get('compare_title', '🔁 같은 곡 과거 vs 현재 비교')}")
 
-            compare_songs = sorted(df["song"].dropna().unique().tolist())
+            compare_groups = sorted(
+                records_view_df["_song_group"].dropna().unique().tolist()
+            )
 
-            if len(compare_songs) == 0:
+            if len(compare_groups) == 0:
                 st.warning(t.get("no_compare_song", "비교할 곡이 없습니다."))
             else:
-                compare_song = st.selectbox(
+                compare_group = st.selectbox(
                     t.get("compare_song_select", "비교할 곡 선택"),
-                    compare_songs
+                    compare_groups
                 )
 
-                song_df = df[df["song"] == compare_song].sort_values("date")
+                song_df = (
+                    records_view_df[
+                        records_view_df["_song_group"] == compare_group
+                    ]
+                    .dropna(subset=["date"])
+                    .sort_values("date", kind="mergesort")
+                )
 
                 if len(song_df) < 2:
                     st.warning(t.get("need_two_records", "이 곡은 비교할 기록이 2개 이상 필요합니다."))
